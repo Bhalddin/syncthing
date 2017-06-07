@@ -20,9 +20,6 @@ clean
 fetchExtra
 buildSource
 
-ls -l lib/model
-ls -l $GOPATH/pkg/linux_amd64/github.com/syncthing/syncthing/lib
-
 build
 test
 testWithCoverage
