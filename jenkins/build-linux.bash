@@ -20,9 +20,9 @@ clean
 fetchExtra
 buildSource
 
-build
-test
-testWithCoverage
+time build
+time test
+time testWithCoverage
 
 platforms=(
 	dragonfly-amd64
@@ -38,24 +38,24 @@ for plat in "${platforms[@]}"; do
 
 	goos="${plat%-*}"
 	goarch="${plat#*-}"
-	go run build.go -goos "$goos" -goarch "$goarch" tar
+	time go run build.go -goos "$goos" -goarch "$goarch" tar
 	mv *.tar.gz "$WORKSPACE"
 	echo
 done
 
 export BUILD_USER=deb
-go run build.go -goarch amd64 deb
-go run build.go -goarch i386 deb
-go run build.go -goarch armel deb
-go run build.go -goarch armhf deb
-go run build.go -goarch arm64 deb
+time go run build.go -goarch amd64 deb
+time go run build.go -goarch i386 deb
+time go run build.go -goarch armel deb
+time go run build.go -goarch armhf deb
+time go run build.go -goarch arm64 deb
 
 mv *.deb "$WORKSPACE"
 
 export BUILD_USER=snap
-go run build.go -goarch amd64 snap
-go run build.go -goarch armhf snap
-go run build.go -goarch arm64 snap
+time go run build.go -goarch amd64 snap
+time go run build.go -goarch armhf snap
+time go run build.go -goarch arm64 snap
 
 mv *.snap "$WORKSPACE"
 
@@ -68,5 +68,5 @@ if [[ -d /usr/local/oldgo ]]; then
 	go version
 	echo
 
-	go run build.go install all # only compile, don't run lints and stuff
+	time go run build.go install all # only compile, don't run lints and stuff
 fi
