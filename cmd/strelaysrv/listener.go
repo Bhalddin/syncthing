@@ -59,6 +59,13 @@ func listener(proto, addr string, config *tls.Config) {
 
 func protocolConnectionHandler(tcpConn net.Conn, config *tls.Config) {
 	conn := tls.Server(tcpConn, config)
+	if err := conn.SetDeadline(time.Now().Add(messageTimeout)); err != nil {
+		if debug {
+			log.Println("Weird error setting deadline:", err, "on", conn.RemoteAddr())
+		}
+		conn.Close()
+		return
+	}
 	err := conn.Handshake()
 	if err != nil {
 		if debug {
@@ -81,6 +88,7 @@ func protocolConnectionHandler(tcpConn net.Conn, config *tls.Config) {
 		conn.Close()
 		return
 	}
+	conn.SetDeadline(time.Time{})
 
 	id := syncthingprotocol.NewDeviceID(certs[0].Raw)
 
@@ -96,7 +104,9 @@ func protocolConnectionHandler(tcpConn net.Conn, config *tls.Config) {
 	go messageReader(conn, messages, errors)
 
 	pingTicker := time.NewTicker(pingInterval)
+	defer pingTicker.Stop()
 	timeoutTicker := time.NewTimer(networkTimeout)
+	defer timeoutTicker.Stop()
 	joined := false
 
 	for {
@@ -139,7 +149,15 @@ func protocolConnectionHandler(tcpConn net.Conn, config *tls.Config) {
 				protocol.WriteMessage(conn, protocol.ResponseSuccess)
 
 			case protocol.ConnectRequest:
-				requestedPeer := syncthingprotocol.DeviceIDFromBytes(msg.ID)
+				requestedPeer, err := syncthingprotocol.DeviceIDFromBytes(msg.ID)
+				if err != nil {
+					if debug {
+						log.Println(id, "is looking for an invalid peer ID")
+					}
+					protocol.WriteMessage(conn, protocol.ResponseNotFound)
+					conn.Close()
+					continue
+				}
 				outboxesMut.RLock()
 				peerOutbox, ok := outboxes[requestedPeer]
 				outboxesMut.RUnlock()
@@ -277,6 +295,7 @@ func sessionConnectionHandler(conn net.Conn) {
 		if debug {
 			log.Println("Weird error setting deadline:", err, "on", conn.RemoteAddr())
 		}
+		conn.Close()
 		return
 	}
 
